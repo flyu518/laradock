@@ -724,6 +724,8 @@ services:
       build: ./redis-cluster
       ports:
         - "${REDIS_CLUSTER_PORT_RANGE}:7000-7005"
+      environment:
+        - IP=${REDIS_CLUSTER_IP}
       networks:
         - backend
 ### SSDB ################################################

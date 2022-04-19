@@ -811,16 +811,16 @@ ARG INSTALL_YARN=false
 ARG YARN_VERSION=latest
 ENV YARN_VERSION ${YARN_VERSION}
 
-RUN if [ ${INSTALL_YARN} = true ]; then \
-    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && \
-    if [ ${YARN_VERSION} = "latest" ]; then \
-        curl -o- -L https://yarnpkg.com/install.sh | bash; \
-    else \
-        curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version ${YARN_VERSION}; \
-    fi && \
-    echo "" >> ~/.bashrc && \
-    echo 'export PATH="$HOME/.yarn/bin:$PATH"' >> ~/.bashrc \
-;fi
+#RUN if [ ${INSTALL_YARN} = true ]; then \
+#    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && \
+#    if [ ${YARN_VERSION} = "latest" ]; then \
+#        curl -o- -L https://yarnpkg.com/install.sh | bash; \
+#    else \
+#        curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version ${YARN_VERSION}; \
+#    fi && \
+#    echo "" >> ~/.bashrc && \
+#    echo 'export PATH="$HOME/.yarn/bin:$PATH"' >> ~/.bashrc \
+#;fi
 
 # Add YARN binaries to root's .bashrc
 USER root
@@ -1199,7 +1199,7 @@ ARG IMAGEMAGICK_VERSION=latest
 ENV IMAGEMAGICK_VERSION ${IMAGEMAGICK_VERSION}
 
 RUN if [ ${INSTALL_IMAGEMAGICK} = true ]; then \
-    apt-get install -y libmagickwand-dev imagemagick && \
+    apt-get update && apt-get install -y libmagickwand-dev imagemagick && \
     if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
       apt-get install -y git && \
       cd /tmp && \

@@ -1,5 +1,5 @@
 #FROM mongo:latest
-FROM mongo:3.4
+FROM mongo:4.4
 
 LABEL maintainer="Mahmoud Zalt <mahmoud@zalt.me>"
 
