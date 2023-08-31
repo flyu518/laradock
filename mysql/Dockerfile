@@ -1,5 +1,6 @@
 ARG MYSQL_VERSION
-FROM mysql:${MYSQL_VERSION}
+#m2的指定版本：--platform=linux/x86_64
+FROM --platform=linux/x86_64 mysql:${MYSQL_VERSION}
 
 LABEL maintainer="Mahmoud Zalt <mahmoud@zalt.me>"
 
