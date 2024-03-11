@@ -1,17 +1,22 @@
 server {
+    charset utf-8;
+    client_max_body_size 128M;
 
     listen 80;
     listen [::]:80;
 
     # For https
-    # listen 443 ssl;
-    # listen [::]:443 ssl ipv6only=on;
+    # listen 443 ssl default_server;
+    # listen [::]:443 ssl default_server ipv6only=on;
     # ssl_certificate /etc/nginx/ssl/default.crt;
     # ssl_certificate_key /etc/nginx/ssl/default.key;
 
-    server_name app.test;
-    root /var/www/app;
+    server_name localhost;
+    root /var/www/public;
     index index.php index.html index.htm;
+
+    access_log /var/log/nginx/public_access.log;
+    error_log /var/log/nginx/public_error.log;
 
     location / {
          try_files $uri $uri/ /index.php$is_args$args;
@@ -29,15 +34,7 @@ server {
         include fastcgi_params;
     }
 
-    location ~ /\.ht {
+    location ~ /\.(ht|svn|git) {
         deny all;
     }
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt/;
-        log_not_found off;
-    }
-
-    error_log /var/log/nginx/app_error.log;
-    access_log /var/log/nginx/app_access.log;
 }
