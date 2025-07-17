@@ -1,0 +1,4 @@
+*
+# 保留 redis.conf 配置文件
+!redis.conf
+!.gitignore
