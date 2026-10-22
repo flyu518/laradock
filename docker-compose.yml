@@ -412,6 +412,71 @@ services:
       links:
         - docker-in-docker
 
+### PHP 8.4 development services (opt-in) ###################
+    php-fpm-84:
+      profiles: [php84]
+      image: ${COMPOSE_PROJECT_NAME:-laradock}-php-fpm-84:8.4.27
+      platform: linux/amd64
+      build:
+        context: ./php84
+        target: fpm
+        platforms: [linux/amd64]
+        args:
+          PUID: ${WORKSPACE_PUID:-1000}
+          PGID: ${WORKSPACE_PGID:-1000}
+          TZ: ${WORKSPACE_TIMEZONE:-Asia/Shanghai}
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+        - ./php84/php.ini:/usr/local/etc/php/conf.d/99-laradock.ini:ro
+        - ./php84/php-fpm.conf:/usr/local/etc/php-fpm.conf:ro
+        - ./php84/xdebug.ini:/usr/local/etc/php/conf.d/99-xdebug.ini:ro
+      working_dir: ${APP_CODE_PATH_CONTAINER}
+      environment:
+        PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
+        XDEBUG_MODE: ${PHP84_XDEBUG_MODE:-off}
+        XDEBUG_CONFIG: client_host=host.docker.internal client_port=${PHP84_XDEBUG_CLIENT_PORT:-9001}
+      extra_hosts:
+        - "dockerhost:${DOCKER_HOST_IP}"
+      expose:
+        - "9000"
+      mem_limit: ${PHP84_FPM_MEMORY_LIMIT:-768m}
+      pids_limit: 128
+      networks:
+        - backend
+
+    workspace-84:
+      profiles: [php84]
+      init: true
+      image: ${COMPOSE_PROJECT_NAME:-laradock}-workspace-84:8.4.27
+      platform: linux/amd64
+      build:
+        context: ./php84
+        target: workspace
+        platforms: [linux/amd64]
+        args:
+          PUID: ${WORKSPACE_PUID:-1000}
+          PGID: ${WORKSPACE_PGID:-1000}
+          TZ: ${WORKSPACE_TIMEZONE:-Asia/Shanghai}
+      volumes:
+        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+        - ./php84/php.ini:/usr/local/etc/php/conf.d/99-laradock.ini:ro
+        - ./php84/workspace.ini:/usr/local/etc/php/conf.d/99-workspace.ini:ro
+        - ./php84/xdebug.ini:/usr/local/etc/php/conf.d/99-xdebug.ini:ro
+      working_dir: ${APP_CODE_PATH_CONTAINER}
+      environment:
+        PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
+        XDEBUG_MODE: ${PHP84_XDEBUG_MODE:-off}
+        XDEBUG_CONFIG: client_host=host.docker.internal client_port=${PHP84_XDEBUG_CLIENT_PORT:-9001}
+      extra_hosts:
+        - "dockerhost:${DOCKER_HOST_IP}"
+      tty: true
+      stdin_open: true
+      mem_limit: ${PHP84_WORKSPACE_MEMORY_LIMIT:-768m}
+      pids_limit: 128
+      networks:
+        - frontend
+        - backend
+
 ### PHP Worker ############################################
     php-worker:
       build:
