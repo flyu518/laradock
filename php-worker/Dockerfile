@@ -38,7 +38,8 @@ RUN apk --update add wget \
 
 
 RUN pecl channel-update pecl.php.net; \
-  docker-php-ext-install mysqli mbstring pdo pdo_mysql tokenizer xml pcntl
+  docker-php-ext-install mysqli mbstring pdo pdo_mysql xml pcntl && \
+  php -m | grep -q '^tokenizer$'
 
 # Add a non-root user:
 ARG PUID=1000

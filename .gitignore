@@ -25,6 +25,3 @@
 docker-compose.custom.yml
 
 .DS_Store
-
-# Local PHP runtime verification output
-/php84/validation/

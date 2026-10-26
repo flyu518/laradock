@@ -27,10 +27,14 @@ ENV DEBIAN_FRONTEND noninteractive
 
 ARG CHANGE_SOURCE=false
 RUN if [ ${CHANGE_SOURCE} = true ]; then \
-    # Change application source from deb.debian.org to aliyun source
-    sed -i 's/deb.debian.org/mirrors.aliyun.com/' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/mirrors.aliyun.com/' /etc/apt/sources.list && \
-    sed -i 's/security-cdn.debian.org/mirrors.aliyun.com/' /etc/apt/sources.list \
+    # Debian 13 uses deb822 .sources files; older base images use sources.list.
+    for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do \
+      if [ -f "${source_file}" ]; then \
+        sed -i -e 's/deb.debian.org/mirrors.aliyun.com/g' \
+          -e 's/security.debian.org/mirrors.aliyun.com/g' \
+          -e 's/security-cdn.debian.org/mirrors.aliyun.com/g' "${source_file}"; \
+      fi; \
+    done \
 ;fi
 
 # always run apt update when start and after add new source list, then clean up at end.
@@ -220,7 +224,9 @@ ARG INSTALL_XDEBUG=false
 RUN if [ ${INSTALL_XDEBUG} = true ]; then \
   # Install the xdebug extension
   # https://xdebug.org/docs/compat
-  if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ] || { [ $(php -r "echo PHP_MAJOR_VERSION;") = "7" ] && { [ $(php -r "echo PHP_MINOR_VERSION;") = "4" ] || [ $(php -r "echo PHP_MINOR_VERSION;") = "3" ] ;} ;}; then \
+  if [ "${LARADOCK_PHP_VERSION}" = "8.4" ]; then \
+    pecl install xdebug-3.5.3; \
+  elif [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ] || { [ $(php -r "echo PHP_MAJOR_VERSION;") = "7" ] && { [ $(php -r "echo PHP_MINOR_VERSION;") = "4" ] || [ $(php -r "echo PHP_MINOR_VERSION;") = "3" ] ;} ;}; then \
     pecl install xdebug-3.1.1; \
   else \
     if [ $(php -r "echo PHP_MAJOR_VERSION;") = "5" ]; then \
@@ -238,6 +244,12 @@ RUN if [ ${INSTALL_XDEBUG} = true ]; then \
 
 # Copy xdebug configuration for remote debugging
 COPY ./xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+COPY ./xdebug8.4.ini /tmp/xdebug8.4.ini
+
+RUN if [ "${LARADOCK_PHP_VERSION}" = "8.4" ]; then \
+  cp /tmp/xdebug8.4.ini /usr/local/etc/php/conf.d/xdebug.ini; \
+fi; \
+rm /tmp/xdebug8.4.ini
 
 RUN if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
   sed -i "s/xdebug.remote_host=/xdebug.client_host=/" /usr/local/etc/php/conf.d/xdebug.ini && \
@@ -306,6 +318,8 @@ RUN if [ ${INSTALL_PHPREDIS} = true ]; then \
     # Install Php Redis Extension
     if [ $(php -r "echo PHP_MAJOR_VERSION;") = "5" ]; then \
       pecl install -o -f redis-4.3.0; \
+    elif [ "${LARADOCK_PHP_VERSION}" = "7.2" ]; then \
+      pecl install -o -f redis-5.3.7; \
     else \
       pecl install -o -f redis; \
     fi \
@@ -364,6 +378,8 @@ RUN if [ ${INSTALL_MONGO} = true ]; then \
     else \
       if [ $(php -r "echo PHP_VERSION_ID - PHP_RELEASE_VERSION;") = "70000" ]; then \
         pecl install mongodb-1.9.2; \
+      elif [ "${LARADOCK_PHP_VERSION}" = "7.2" ]; then \
+        pecl install mongodb-1.16.2; \
       else \
         pecl install mongodb; \
       fi; \
@@ -769,13 +785,16 @@ ARG IMAGEMAGICK_VERSION=latest
 ENV IMAGEMAGICK_VERSION ${IMAGEMAGICK_VERSION}
 
 RUN if [ ${INSTALL_IMAGEMAGICK} = true ]; then \
-    apt update && apt-get install -yqq libmagickwand-dev imagemagick && \
+    apt-get -o Acquire::http::Proxy::mirrors.aliyun.com=DIRECT \
+      -o Acquire::https::Proxy::mirrors.aliyun.com=DIRECT update && \
+    apt-get -o Acquire::http::Proxy::mirrors.aliyun.com=DIRECT \
+      -o Acquire::https::Proxy::mirrors.aliyun.com=DIRECT install -yqq libmagickwand-dev imagemagick && \
     if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
       cd /tmp && \
       if [ ${IMAGEMAGICK_VERSION} = "latest" ]; then \
-        git clone https://github.com/Imagick/imagick; \
+        git clone --depth 1 https://github.com/Imagick/imagick; \
       else \
-        git clone --branch ${IMAGEMAGICK_VERSION} https://github.com/Imagick/imagick; \
+        git clone --depth 1 --branch ${IMAGEMAGICK_VERSION} https://github.com/Imagick/imagick; \
       fi && \
       cd imagick && \
       phpize && \
@@ -1236,7 +1255,7 @@ USER root
 # Clean up
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    rm /var/log/lastlog /var/log/faillog
+    rm -f /var/log/lastlog /var/log/faillog
 
 # Configure non-root user.
 ARG PUID=1000

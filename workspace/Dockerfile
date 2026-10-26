@@ -32,8 +32,15 @@ USER root
 
 ARG CHANGE_SOURCE=false
 RUN if [ ${CHANGE_SOURCE} = true ]; then \
-    # Change application source from deb.debian.org to aliyun source
-    sed -i 's/ports.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list; \
+    # Ubuntu 24.04 uses deb822 .sources files; older base images use sources.list.
+    for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do \
+      if [ -f "${source_file}" ]; then \
+        sed -i 's/ports.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' "${source_file}"; \
+      fi; \
+    done && \
+    printf '%s\n' 'Acquire::http::Proxy::mirrors.tuna.tsinghua.edu.cn "DIRECT";' \
+      'Acquire::https::Proxy::mirrors.tuna.tsinghua.edu.cn "DIRECT";' \
+      > /etc/apt/apt.conf.d/99laradock-mirror-direct; \
   fi;
 
 # Start as root
@@ -53,8 +60,20 @@ ENV PGID ${PGID}
 RUN set -xe; \
     apt-get update -yqq && \
     pecl channel-update pecl.php.net && \
-    groupadd -g ${PGID} laradock && \
-    useradd -l -u ${PUID} -g laradock -m laradock -G docker_env && \
+    group_name="$(getent group "${PGID}" | cut -d: -f1 || true)" && \
+    if [ -n "${group_name}" ] && [ "${group_name}" != laradock ]; then \
+      if getent group laradock >/dev/null; then groupmod -g "${PGID}" laradock; else groupmod -n laradock "${group_name}"; fi; \
+    elif [ -z "${group_name}" ] && ! getent group laradock >/dev/null; then \
+      groupadd -g "${PGID}" laradock; \
+    fi && \
+    if ! id -u laradock >/dev/null 2>&1; then \
+      user_name="$(getent passwd "${PUID}" | cut -d: -f1 || true)" && \
+      if [ -n "${user_name}" ]; then usermod -l laradock "${user_name}"; else useradd -l -u "${PUID}" -g laradock -m laradock -G docker_env; fi; \
+    fi && \
+    if [ -d /home/ubuntu ] && [ ! -e /home/laradock ]; then usermod -d /home/laradock -m laradock; fi && \
+    usermod -u "${PUID}" laradock && \
+    usermod -g "${PGID}" laradock && \
+    usermod -a -G docker_env laradock && \
     usermod -p "*" laradock -s /bin/bash && \
     apt-get install -yqq \
       apt-utils \
@@ -333,7 +352,9 @@ ARG INSTALL_XDEBUG=false
 
 RUN if [ ${INSTALL_XDEBUG} = true ]; then \
   # Install the xdebug extension
-  if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
+  if [ "${LARADOCK_PHP_VERSION}" = "8.4" ]; then \
+    pecl install xdebug-3.5.3; \
+  elif [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
     pecl install xdebug-3.0.0; \
   else \
     if [ $(php -r "echo PHP_MAJOR_VERSION;") = "5" ]; then \
@@ -360,6 +381,12 @@ RUN if [ ${INSTALL_XDEBUG} = true ]; then \
 
 # ADD for REMOTE debugging
 COPY ./xdebug.ini /etc/php/${LARADOCK_PHP_VERSION}/cli/conf.d/xdebug.ini
+COPY ./xdebug8.4.ini /tmp/xdebug8.4.ini
+
+RUN if [ "${LARADOCK_PHP_VERSION}" = "8.4" ]; then \
+  cp /tmp/xdebug8.4.ini /etc/php/${LARADOCK_PHP_VERSION}/cli/conf.d/xdebug.ini; \
+fi; \
+rm /tmp/xdebug8.4.ini
 
 RUN if [ $(php -r "echo PHP_MAJOR_VERSION;") = "8" ]; then \
   sed -i "s/xdebug.remote_host=/xdebug.client_host=/" /etc/php/${LARADOCK_PHP_VERSION}/cli/conf.d/xdebug.ini && \
@@ -462,6 +489,8 @@ RUN if [ ${INSTALL_MONGO} = true ]; then \
     else \
       if [ $(php -r "echo PHP_VERSION_ID - PHP_RELEASE_VERSION;") = "70000" ]; then \
         pecl install mongodb-1.9.2; \
+      elif [ "${LARADOCK_PHP_VERSION}" = "7.2" ]; then \
+        pecl install mongodb-1.16.2; \
       else \
         pecl install mongodb; \
       fi; \
@@ -617,7 +646,7 @@ RUN if [ ${INSTALL_INOTIFY} = true ]; then \
 ###########################################################################
 
 ARG INSTALL_AST=false
-ARG AST_VERSION=1.0.10
+ARG AST_VERSION=1.1.2
 ENV AST_VERSION ${AST_VERSION}
 
 RUN if [ ${INSTALL_AST} = true ]; then \
@@ -1204,9 +1233,9 @@ RUN if [ ${INSTALL_IMAGEMAGICK} = true ]; then \
       apt-get install -y git && \
       cd /tmp && \
       if [ ${IMAGEMAGICK_VERSION} = "latest" ]; then \
-        git clone https://github.com/Imagick/imagick; \
+        git clone --depth 1 https://github.com/Imagick/imagick; \
       else \
-        git clone --branch ${IMAGEMAGICK_VERSION} https://github.com/Imagick/imagick; \
+        git clone --depth 1 --branch ${IMAGEMAGICK_VERSION} https://github.com/Imagick/imagick; \
       fi && \
       cd imagick && \
       phpize && \

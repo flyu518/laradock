@@ -226,28 +226,8 @@ docker build --no-cache {container-name}
 <a name="Change-the-PHP-FPM-Version"></a>
 ## Change the (PHP-FPM) Version
 
-By default, the latest stable PHP version is configured to run.
-
->The PHP-FPM is responsible for serving your application code, you don't have to change the PHP-CLI version if you are planning to run your application on different PHP-FPM version.
-
-
-### A) Switch from PHP `7.2` to PHP `5.6`
-
-1 - Open the `.env`.
-
-2 - Search for `PHP_VERSION`.
-
-3 - Set the desired version number:
-
-```dotenv
-PHP_VERSION=5.6
-```
-
-4 - Finally rebuild the image
-
-```bash
-docker-compose build php-fpm
-```
+The default `php-fpm` service follows `PHP_VERSION` (8.4 by default); the patch version comes from the Laradock base image. PHP 7.2 is retained temporarily as
+`php-fpm-72`; point the site's `fastcgi_pass` to `php-fpm-72:9000` when it needs PHP 7.2.
 
 > For more details about the PHP base image, visit the [official PHP docker images](https://hub.docker.com/_/php/).
 
@@ -262,23 +242,8 @@ docker-compose build php-fpm
 
 >Note: it's not very essential to edit the PHP-CLI version. The PHP-CLI is only used for the Artisan Commands & Composer. It doesn't serve your Application code, this is the PHP-FPM job.
 
-The PHP-CLI is installed in the Workspace container. To change the PHP-CLI version you need to simply change the `PHP_VERSION` in the .env file as follow:
-
-1 - Open the `.env`.
-
-2 - Search for `PHP_VERSION`.
-
-3 - Set the desired version number:
-
-```dotenv
-PHP_VERSION=7.2
-```
-
-4 - Finally rebuild the image
-
-```bash
-docker-compose build workspace
-```
+The default `workspace` and `php-fpm` services use the version in `PHP_VERSION` (8.4 by default).
+`workspace-72` and `php-fpm-72` remain available temporarily for PHP 7.2.
 
 
 
